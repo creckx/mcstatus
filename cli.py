@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import socket
 from pprint import pprint
 from argparse import ArgumentParser
 
