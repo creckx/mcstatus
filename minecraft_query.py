@@ -1,7 +1,7 @@
 import socket
 import struct
 
-class MinecraftQuery:
+class MinecraftQuery(object):
     MAGIC_PREFIX = '\xFE\xFD'
     PACKET_TYPE_CHALLENGE = 9
     PACKET_TYPE_QUERY = 0

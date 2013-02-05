@@ -25,8 +25,8 @@ def main():
 
     try:
         query = MinecraftQuery(options.host, options.port,
-                               timeout=options.timeout,
-                               retries=options.retries)
+                            timeout=options.timeout,
+                            retries=options.retries)
         server_data = query.get_rules()
     except socket.error as e:
         if not options.quiet:
