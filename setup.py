@@ -6,7 +6,7 @@ setup(
     author = "Adam Strauch",
     author_email = "cx@initd.cz",
     description = ("Library for querying minecraft status. It can generate widgets too."),
-    license = "GPL",
+    license = "BSD",
     keywords = "minecraft",
     url = "https://github.com/creckx/mcstatus",
     long_description="Library for querying minecraft status. It can generate widgets too.",
