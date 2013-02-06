@@ -10,6 +10,8 @@ from minecraft_query import MinecraftQuery
 from PIL import Image, ImageDraw, ImageFont
 from subprocess import PIPE, Popen
 
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+
 #Doc
 #http://www.pythonware.com/library/pil/handbook/imagedraw.htm
 #http://stackoverflow.com/questions/4011705/python-the-imagingft-c-module-is-not-installed (_imaging)
@@ -59,40 +61,43 @@ def run(cmd):
 
 class MinecraftWidgetCollector(MinecraftQuery):
 
-    def __init__(self, ssh_connection, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(MinecraftWidgetCollector, self).__init__(*args, **kwargs)
         self.basic_status = self.get_status()
         self.full_info = self.get_rules()
-        self.ssh_connection = ssh_connection
         self.load_history()
 
     def save_history(self):
-        with open(os.path.join(config["data_dir"], "minecraft.stats"), "w") as f:
+        with open(os.path.join(config["data_dir"], "minecraft_%s_%d.stats" % self.addr), "w") as f:
             json.dump(self.history, f)
 
     def save_data(self):
-        with open(os.path.join(config["data_dir"], "minecraft.data"), "w") as f:
+        with open(os.path.join(config["data_dir"], "minecraft_%s_%d.data" % self.addr), "w") as f:
             json.dump(self.get_data(), f)
 
     def load_history(self):
-        if os.path.isfile(os.path.join(config["data_dir"], "minecraft.stats")):
-            with open(os.path.join(config["data_dir"], "minecraft.stats")) as f:
+        if os.path.isfile(os.path.join(config["data_dir"], "minecraft_%s_%d.stats" % self.addr)):
+            with open(os.path.join(config["data_dir"], "minecraft_%s_%d.stats" % self.addr)) as f:
                 try:
                     self.history = json.load(f)
                     return 
                 except ValueError:
                     pass
         self.history = {
-            "players_24h": {},
+            "players_24h": [],
             "last_hour": 0,
         }
         for x in range(24):
-            self.history["players_24h"][x] = []
+            self.history["players_24h"].append([])
+
+    def get_last(self):
+        with open(os.path.join(config["data_dir"], "minecraft_%s_%d.data" % self.addr)) as f:
+            return json.load(f)
 
     def get_memory(self):
         output = {"memory": 0, "memory_max": 0}
         try:
-            data = [x.strip().split() for x in run("ssh %s free -m" % self.ssh_connection).split("\n")]
+            data = [x.strip().split() for x in run("ssh stats@%s free -m" % self.addr[0]).split("\n")]
             output["memory_max"] = data[1][1]
             output["memory"] = data[2][2]
         except IOError:
@@ -102,7 +107,7 @@ class MinecraftWidgetCollector(MinecraftQuery):
     def get_load(self):
         data = {"load": (0.0, 0.0, 0.0)}
         try:
-            output = run("ssh %s uptime" % self.ssh_connection).strip()
+            output = run("ssh stats@%s uptime" % self.addr[0]).strip()
         except IOError:
             pass
         if len(output.split(" ")) > 3:
@@ -115,7 +120,7 @@ class MinecraftWidgetCollector(MinecraftQuery):
     def get_cpus(self):
         data = {"cpu_count": 1}
         try:
-            output = run("ssh %s cat /proc/cpuinfo" % self.ssh_connection).strip()
+            output = run("ssh stats@%s cat /proc/cpuinfo" % self.addr[0]).strip()
         except IOError:
             output = ""
         if output:
@@ -129,9 +134,11 @@ class MinecraftWidgetCollector(MinecraftQuery):
     def write_history(self, players):
         hour = datetime.datetime.now().hour
         if hour != self.history["last_hour"]:
-            self.history["players_24h"][hour] = [players]
+            self.history["players_24h"].append([players])
         else:
-            self.history["players_24h"][hour].append(players)
+            self.history["players_24h"][-1].append(players)
+        if len(self.history["players_24h"]) > 24:
+            self.history["players_24h"] = self.history["players_24h"][1:]
         self.history["last_hour"] = hour
         self.save_history()
 
@@ -144,6 +151,7 @@ class MinecraftWidgetCollector(MinecraftQuery):
             "count" : self.basic_status["numplayers"],
             "count_max" : self.basic_status["maxplayers"],
         }
+        self.write_history(self.basic_status["numplayers"])
         return data
 
     def get_data(self):
@@ -153,9 +161,9 @@ class MinecraftWidgetCollector(MinecraftQuery):
         data.update(self.get_load())
         data.update(self.get_memory())
         data["count_history"] = []
-        for h in self.history["players_24h"]:
-            if len(self.history["players_24h"][h]) > 0:
-                data["count_history"].append(sum(self.history["players_24h"][h])/len(self.history["players_24h"][h]))
+        for hour in self.history["players_24h"]:
+            if len(hour) > 0:
+                data["count_history"].append(sum(hour)/float(len(hour)))
             else:
                 data["count_history"].append(0)
         return data
@@ -170,20 +178,10 @@ class MinecraftWidget(object):
     COLOR_GRAPH_MAX = (20, 20, 20)
     COLOR_GRAPH_VALUE = (250, 20, 34)
     COLOR_GRAPH_TEXT = (250, 250, 250)
+    COLOR_GRAPH_LINE = (255, 178, 24)
 
-    def __init__(self, data={}):
-        self.im = Image.new("RGB", (400, 120), self.COLOR_BG)
-
-        self.draw = ImageDraw.Draw(self.im)
-        self.font = ImageFont.truetype("DejaVuSans.ttf", 12, encoding="unicode")
-        if data:
-            self.data = data
-        else:
-            self.data = self.load_data()
-
-    def load_data(self):
-        with open(os.path.join(config["data_dir"], "minecraft.data")) as f:
-            return json.load(f)
+    def __init__(self, data):
+        self.data = data
 
     def draw_name(self, x ,y):
         self.draw.text((x, y), unicode("Server"), font=self.font, fill=self.COLOR_TEXT)
@@ -213,16 +211,23 @@ class MinecraftWidget(object):
         offset = 1
         for i, value in enumerate(values):
             for offset_local in range(multiplicator):
-                self.draw.line((x+1+i+offset, y+height-1, x+1+i+offset, y+height-1-(value/ceil*height)), fill=self.COLOR_GRAPH_VALUE)
+                self.draw.line((x+1+i+offset, y+height-1, x+1+i+offset, y+height-1-(float(value)/ceil*height)), fill=self.COLOR_GRAPH_VALUE)
                 offset += 1
-        self.draw.text((x+2, y+height-12), unicode("0"), font=self.font, fill=self.COLOR_GRAPH_TEXT)
+        self.draw.text((x+2, y+height-14), unicode("0"), font=self.font, fill=self.COLOR_GRAPH_TEXT)
         self.draw.text((x+2, y+2), unicode(ceil), font=self.font, fill=self.COLOR_GRAPH_TEXT)
+        self.draw.line((x+2, y+height, x+width+width*multiplicator, y+height), fill=self.COLOR_GRAPH_LINE)
+        self.draw.line((x+2, y+2, x+width+width*multiplicator, y+2), fill=self.COLOR_GRAPH_LINE)
+        self.draw.text(((x+(width+width*multiplicator)/2-8), y+height), unicode("24h"), font=self.font, fill=self.COLOR_GRAPH_TEXT)
 
     def draw_bar(self, x, y, percent, width=118):
         self.draw.rectangle((x, y, x+width, y+14), fill=self.COLOR_BAR_MAX)
         self.draw.rectangle((x+1, y+1, x+((width-1)/100.0)*percent, y+13), fill=self.COLOR_BAR_VALUE)
 
     def get_image(self):
+        self.im = Image.new("RGB", (400, 120), self.COLOR_BG)
+        self.draw = ImageDraw.Draw(self.im)
+        self.font = ImageFont.truetype(os.path.join(ROOT, "DejaVuSans.ttf"), 12, encoding="unicode")
+
         self.draw_name(10, 10)
         self.draw_ip(230, 10)
         self.draw_count(230, 30)
@@ -238,13 +243,13 @@ class MinecraftWidget(object):
         return output.getvalue()
 
 
-def main(hostname, port, ssh_connection):
-    collector = MinecraftWidgetCollector(ssh_connection, hostname, port)
+def main(hostname, port):
+    collector = MinecraftWidgetCollector(hostname, port)
     collector.save_data()
-    widget = MinecraftWidget()
-    with open(os.path.join(config["data_dir"], "www", "widget.png"), "w") as f:
+    widget = MinecraftWidget(collector.get_last())
+    with open(os.path.join(config["data_dir"], "www", "widget_%s_%d.png" % collector.addr), "w") as f:
         f.write(widget.get_image())
 
 
 if __name__ == "__main__":
-    main("194.8.253.48", 25565, "bestnet-minecraft")
+    main("194.8.253.48", 25565)
