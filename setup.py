@@ -17,7 +17,7 @@ setup(
         "License :: OSI Approved :: BSD License",
         ],
     package_data={'mcstatus': [
-        'DejaVuSans.ttf',
+        'DejaVuSans.ttf', 'PT_Sans-Web-Regular.ttf', 'bg/*', 'script.ini',
     ]},
     entry_points="""
     [console_scripts]

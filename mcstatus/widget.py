@@ -6,6 +6,7 @@ import os
 import sys
 import json
 import datetime
+import ConfigParser
 from minecraft_query import MinecraftQuery
 from PIL import Image, ImageDraw, ImageFont
 from subprocess import PIPE, Popen
@@ -171,41 +172,96 @@ class MinecraftWidgetCollector(MinecraftQuery):
 
 
 class MinecraftWidget(object):
-    COLOR_BG = (106, 137, 94)
-    COLOR_TEXT = (137, 41, 0)
-    COLOR_TEXT_VALUE = (211, 211, 211)
-    COLOR_BAR_MAX = (20, 20, 20)
-    COLOR_BAR_VALUE = (80, 250, 34)
-    COLOR_GRAPH_MAX = (20, 20, 20)
-    COLOR_GRAPH_VALUE = (250, 20, 34)
-    COLOR_GRAPH_TEXT = (250, 250, 250)
-    COLOR_GRAPH_LINE = (255, 178, 24)
 
-    def __init__(self, data):
+    def __init__(self, data, profile="hb"):
         self.data = data
+        self.profile = profile
 
-    def draw_name(self, x ,y):
+        self.init_config()
+        self.init_colors()
+        self.init_sizes()
+
+    def init_config(self):
+        self.config = ConfigParser.RawConfigParser(allow_no_value=True)
+        self.config.read(os.path.join(ROOT, "script.ini"))
+
+    def _parse(self, value):
+        return tuple([int(x.strip()) for x in value.split(",")])
+
+    def init_colors(self):
+        self.COLOR_BG = self._parse(self.config.get(self.profile, "color_bg"))
+        self.COLOR_TEXT = self._parse(self.config.get(self.profile, "color_text"))
+        self.COLOR_TEXT_VALUE = self._parse(self.config.get(self.profile, "color_text_value"))
+        self.COLOR_BAR_MAX = self._parse(self.config.get(self.profile, "color_bar_max"))
+        self.COLOR_BAR_VALUE = self._parse(self.config.get(self.profile, "color_bar_value"))
+        self.COLOR_GRAPH_MAX = self._parse(self.config.get(self.profile, "color_graph_max"))
+        self.COLOR_GRAPH_VALUE = self._parse(self.config.get(self.profile, "color_graph_value"))
+        self.COLOR_GRAPH_TEXT = self._parse(self.config.get(self.profile, "color_graph_text"))
+        self.COLOR_GRAPH_LINE = self._parse(self.config.get(self.profile, "color_graph_line"))
+
+    def init_sizes(self):
+        self.SIZE_NAME = self._parse(self.config.get(self.profile, "name"))
+        self.SIZE_IP = self._parse(self.config.get(self.profile, "ip"))
+        self.SIZE_COUNT = self._parse(self.config.get(self.profile, "count"))
+        self.SIZE_LOAD = self._parse(self.config.get(self.profile, "load"))
+        self.SIZE_MEMORY = self._parse(self.config.get(self.profile, "memory"))
+        self.SIZE_BAR_LOAD = self._parse(self.config.get(self.profile, "bar_load"))
+        self.SIZE_BAR_MEMORY = self._parse(self.config.get(self.profile, "bar_memory"))
+        self.SIZE_GRAPH = self._parse(self.config.get(self.profile, "graph"))
+
+    def draw_name(self, x ,y, two_lines=False):
         self.draw.text((x, y), unicode("Server"), font=self.font, fill=self.COLOR_TEXT)
-        self.draw.text((x+42, y), unicode(self.data["name"]), font=self.font, fill=self.COLOR_TEXT_VALUE)
+        if two_lines:
+            offset_x = 0
+            offset_y = 15
+        else:
+            offset_x = 42
+            offset_y = 0
+        self.draw.text((x+offset_x, y+offset_y), unicode(self.data["name"]), font=self.font, fill=self.COLOR_TEXT_VALUE)
 
-    def draw_ip(self, x ,y):
-        #self.draw.text((x, y), unicode("IP"), font=self.font, fill=self.COLOR_TEXT)
+    def draw_ip(self, x ,y, two_lines=False):
+        if two_lines:
+            self.draw.text((x, y), unicode("IP"), font=self.font, fill=self.COLOR_TEXT)
         #+20
-        self.draw.text((x, y), unicode("%s:%s" % (self.data["ip"], self.data["port"])), font=self.font, fill=self.COLOR_TEXT_VALUE)
+        if two_lines:
+            offset_x = 0
+            offset_y = 15
+        else:
+            offset_x = 0
+            offset_y = 0
+        self.draw.text((x+offset_x, y+offset_y), unicode("%s:%s" % (self.data["ip"], self.data["port"])), font=self.font, fill=self.COLOR_TEXT_VALUE)
 
-    def draw_count(self, x ,y):
+    def draw_count(self, x ,y, two_lines=False):
         self.draw.text((x, y), unicode("Hráči"), font=self.font, fill=self.COLOR_TEXT)
-        self.draw.text((x+32, y), unicode(self.data["count"]), font=self.font, fill=self.COLOR_TEXT_VALUE)
+        if two_lines:
+            offset_x = 0
+            offset_y = 15
+        else:
+            offset_x = 32
+            offset_y = 0
+        self.draw.text((x+offset_x, y+offset_y), unicode(self.data["count"]), font=self.font, fill=self.COLOR_TEXT_VALUE)
 
-    def draw_load(self, x ,y, load):
+    def draw_load(self, x ,y, load, two_lines=False):
         self.draw.text((x, y), unicode("Zatížení"), font=self.font, fill=self.COLOR_TEXT)
-        self.draw.text((x+50, y), unicode("%.2f %%" % load), font=self.font, fill=self.COLOR_TEXT_VALUE)
+        if two_lines:
+            offset_x = 0
+            offset_y = 15
+        else:
+            offset_x = 50
+            offset_y = 0
+        self.draw.text((x+offset_x, y+offset_y), unicode("%.2f %%" % load), font=self.font, fill=self.COLOR_TEXT_VALUE)
 
-    def draw_memory(self, x ,y):
+    def draw_memory(self, x ,y, two_lines=False):
         self.draw.text((x, y), unicode("Paměť"), font=self.font, fill=self.COLOR_TEXT)
-        self.draw.text((x+40, y), unicode("%s/%s MB" % (self.data["memory"], self.data["memory_max"])), font=self.font, fill=self.COLOR_TEXT_VALUE)
+        if two_lines:
+            offset_x = 0
+            offset_y = 15
+        else:
+            offset_x = 40
+            offset_y = 0
+        self.draw.text((x+offset_x, y+offset_y), unicode("%s/%s MB" % (self.data["memory"], self.data["memory_max"])), font=self.font, fill=self.COLOR_TEXT_VALUE)
 
-    def draw_graphs(self, x, y, values, height=40, multiplicator=1):
+    def draw_graphs(self, x, y, values, height=40, multiplicator=1, two_lines=False):
         width=len(values)
         ceil = max(values)*1.2
         if not ceil: ceil = 1
@@ -221,25 +277,26 @@ class MinecraftWidget(object):
         self.draw.line((x+2, y+2, x+width+width*multiplicator, y+2), fill=self.COLOR_GRAPH_LINE)
         #self.draw.text(((x+(width+width*multiplicator)/2-8), y+height), unicode("24h"), font=self.font, fill=self.COLOR_GRAPH_TEXT)
 
-    def draw_bar(self, x, y, percent, width=118):
+    def draw_bar(self, x, y, percent, width=118, two_lines=False):
         self.draw.rectangle((x, y, x+width, y+14), fill=self.COLOR_BAR_MAX)
         self.draw.rectangle((x+1, y+1, x+((width-1)/100.0)*percent, y+13), fill=self.COLOR_BAR_VALUE)
 
     def get_image(self):
-        #self.im = Image.new("RGB", (400, 120), self.COLOR_BG)
-        self.im = Image.open("pozadi_widgetu.png")
+        self.im = Image.open(os.path.join(ROOT, "bg", self.config.get(self.profile, "bg")))
         self.draw = ImageDraw.Draw(self.im)
         self.font = ImageFont.truetype(os.path.join(ROOT, "PT_Sans-Web-Regular.ttf"), 12, encoding="unicode")
 
-        self.draw_name(38, 11)
-        self.draw_ip(82, 30)
-        self.draw_count(330, 11)
+        two_lines = self.config.getboolean(self.profile, "two_lines")
+
+        self.draw_name(self.SIZE_NAME[0], self.SIZE_NAME[1], two_lines)
+        self.draw_ip(self.SIZE_IP[0], self.SIZE_IP[1], two_lines)
+        self.draw_count(self.SIZE_COUNT[0], self.SIZE_COUNT[1], two_lines)
         load = float(self.data["load"][1])/float(self.data["cpu_count"])*100
-        self.draw_load(38, 51, load)
-        self.draw_memory(212, 51)
-        self.draw_bar(38, 71, int(load), 169)
-        self.draw_bar(212, 71, float(self.data["memory"])/float(self.data["memory_max"])*100, 169)
-        self.draw_graphs(396, 10, self.data["count_history"], 80, 5)
+        self.draw_load(self.SIZE_LOAD[0], self.SIZE_LOAD[1], load, two_lines)
+        self.draw_memory(self.SIZE_MEMORY[0], self.SIZE_MEMORY[1], two_lines)
+        self.draw_bar(self.SIZE_BAR_LOAD[0], self.SIZE_BAR_LOAD[1], int(load), self.SIZE_BAR_LOAD[2])
+        self.draw_bar(self.SIZE_BAR_MEMORY[0], self.SIZE_BAR_MEMORY[1], float(self.data["memory"])/float(self.data["memory_max"])*100, self.SIZE_BAR_MEMORY[2])
+        self.draw_graphs(self.SIZE_GRAPH[0], self.SIZE_GRAPH[1], self.data["count_history"], self.SIZE_GRAPH[2], self.SIZE_GRAPH[3])
 
         output = StringIO.StringIO()
         self.im.save(output, "PNG")
@@ -249,9 +306,10 @@ class MinecraftWidget(object):
 def main(hostname, port):
     collector = MinecraftWidgetCollector(hostname, port)
     collector.save_data()
-    widget = MinecraftWidget(collector.get_last())
-    with open(os.path.join(config["data_dir"], "www", "widget_%s_%d.png" % collector.addr), "w") as f:
-        f.write(widget.get_image())
+    for profile in ('vb', 'vw', 'hb', 'hw'):
+        widget = MinecraftWidget(collector.get_last(), profile)
+        with open(os.path.join(config["data_dir"], "www", "widget_%s_%s_%d.png" % (profile, collector.addr[0], collector.addr[1])), "w") as f:
+            f.write(widget.get_image())
 
 
 if __name__ == "__main__":
