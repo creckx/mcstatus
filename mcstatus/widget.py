@@ -59,6 +59,7 @@ def run(cmd):
     stdout, stderr = p.communicate()
     return stdout
 
+
 class MinecraftWidgetCollector(MinecraftQuery):
 
     def __init__(self, *args, **kwargs):
@@ -185,23 +186,24 @@ class MinecraftWidget(object):
 
     def draw_name(self, x ,y):
         self.draw.text((x, y), unicode("Server"), font=self.font, fill=self.COLOR_TEXT)
-        self.draw.text((x+52, y), unicode(self.data["name"]), font=self.font, fill=self.COLOR_TEXT_VALUE)
+        self.draw.text((x+42, y), unicode(self.data["name"]), font=self.font, fill=self.COLOR_TEXT_VALUE)
 
     def draw_ip(self, x ,y):
         #self.draw.text((x, y), unicode("IP"), font=self.font, fill=self.COLOR_TEXT)
-        self.draw.text((x+20, y), unicode(self.data["ip"]), font=self.font, fill=self.COLOR_TEXT_VALUE)
+        #+20
+        self.draw.text((x, y), unicode("%s:%s" % (self.data["ip"], self.data["port"])), font=self.font, fill=self.COLOR_TEXT_VALUE)
 
     def draw_count(self, x ,y):
         self.draw.text((x, y), unicode("Hráči"), font=self.font, fill=self.COLOR_TEXT)
-        self.draw.text((x+42, y), unicode(self.data["count"]), font=self.font, fill=self.COLOR_TEXT_VALUE)
+        self.draw.text((x+32, y), unicode(self.data["count"]), font=self.font, fill=self.COLOR_TEXT_VALUE)
 
     def draw_load(self, x ,y, load):
         self.draw.text((x, y), unicode("Zatížení"), font=self.font, fill=self.COLOR_TEXT)
-        self.draw.text((x+60, y), unicode("%.2f %%" % load), font=self.font, fill=self.COLOR_TEXT_VALUE)
+        self.draw.text((x+50, y), unicode("%.2f %%" % load), font=self.font, fill=self.COLOR_TEXT_VALUE)
 
     def draw_memory(self, x ,y):
         self.draw.text((x, y), unicode("Paměť"), font=self.font, fill=self.COLOR_TEXT)
-        self.draw.text((x+45, y), unicode("%s/%s MB" % (self.data["memory"], self.data["memory_max"])), font=self.font, fill=self.COLOR_TEXT_VALUE)
+        self.draw.text((x+40, y), unicode("%s/%s MB" % (self.data["memory"], self.data["memory_max"])), font=self.font, fill=self.COLOR_TEXT_VALUE)
 
     def draw_graphs(self, x, y, values, height=40, multiplicator=1):
         width=len(values)
@@ -214,29 +216,30 @@ class MinecraftWidget(object):
                 self.draw.line((x+1+i+offset, y+height-1, x+1+i+offset, y+height-1-(float(value)/ceil*height)), fill=self.COLOR_GRAPH_VALUE)
                 offset += 1
         self.draw.text((x+2, y+height-14), unicode("0"), font=self.font, fill=self.COLOR_GRAPH_TEXT)
-        self.draw.text((x+2, y+2), unicode(ceil), font=self.font, fill=self.COLOR_GRAPH_TEXT)
+        self.draw.text((x+2, y+2), unicode("%.1f" % ceil), font=self.font, fill=self.COLOR_GRAPH_TEXT)
         self.draw.line((x+2, y+height, x+width+width*multiplicator, y+height), fill=self.COLOR_GRAPH_LINE)
         self.draw.line((x+2, y+2, x+width+width*multiplicator, y+2), fill=self.COLOR_GRAPH_LINE)
-        self.draw.text(((x+(width+width*multiplicator)/2-8), y+height), unicode("24h"), font=self.font, fill=self.COLOR_GRAPH_TEXT)
+        #self.draw.text(((x+(width+width*multiplicator)/2-8), y+height), unicode("24h"), font=self.font, fill=self.COLOR_GRAPH_TEXT)
 
     def draw_bar(self, x, y, percent, width=118):
         self.draw.rectangle((x, y, x+width, y+14), fill=self.COLOR_BAR_MAX)
         self.draw.rectangle((x+1, y+1, x+((width-1)/100.0)*percent, y+13), fill=self.COLOR_BAR_VALUE)
 
     def get_image(self):
-        self.im = Image.new("RGB", (400, 120), self.COLOR_BG)
+        #self.im = Image.new("RGB", (400, 120), self.COLOR_BG)
+        self.im = Image.open("pozadi_widgetu.png")
         self.draw = ImageDraw.Draw(self.im)
-        self.font = ImageFont.truetype(os.path.join(ROOT, "DejaVuSans.ttf"), 12, encoding="unicode")
+        self.font = ImageFont.truetype(os.path.join(ROOT, "PT_Sans-Web-Regular.ttf"), 12, encoding="unicode")
 
-        self.draw_name(10, 10)
-        self.draw_ip(230, 10)
-        self.draw_count(230, 30)
+        self.draw_name(38, 11)
+        self.draw_ip(82, 30)
+        self.draw_count(330, 11)
         load = float(self.data["load"][1])/float(self.data["cpu_count"])*100
-        self.draw_load(10, 30, load)
-        self.draw_memory(10, 70)
-        self.draw_bar(10, 50, int(load), 200)
-        self.draw_bar(10, 90, float(self.data["memory"])/float(self.data["memory_max"])*100, 200)
-        self.draw_graphs(230, 50, self.data["count_history"], 52, 4)
+        self.draw_load(38, 51, load)
+        self.draw_memory(212, 51)
+        self.draw_bar(38, 71, int(load), 169)
+        self.draw_bar(212, 71, float(self.data["memory"])/float(self.data["memory_max"])*100, 169)
+        self.draw_graphs(396, 10, self.data["count_history"], 80, 5)
 
         output = StringIO.StringIO()
         self.im.save(output, "PNG")
