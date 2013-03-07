@@ -1,5 +1,8 @@
 import socket
 import struct
+import shlex
+import ping
+from subprocess import PIPE, Popen
 
 class MinecraftQuery(object):
     MAGIC_PREFIX = '\xFE\xFD'
@@ -144,3 +147,79 @@ class MinecraftQuery(object):
             plugins = map(lambda s: s.strip(), plugins)
         
         return server, plugins
+
+
+def run(cmd):
+    p = Popen(shlex.split(cmd), stdout=PIPE, stderr=PIPE)
+    stdout, stderr = p.communicate()
+    return stdout
+
+
+class MinecraftWidgetCollector(MinecraftQuery):
+
+    def __init__(self, *args, **kwargs):
+        super(MinecraftWidgetCollector, self).__init__(*args, **kwargs)
+        self.basic_status = self.get_status()
+        self.full_info = self.get_rules()
+
+    def get_delay(self):
+        return {"delay": "1"}
+
+    def get_memory(self):
+        output = {"memory": 0, "memory_max": 0}
+        try:
+            data = [x.strip().split() for x in run("ssh stats@%s free -m" % self.addr[0]).split("\n")]
+            output["memory_max"] = data[1][1]
+            output["memory"] = data[2][2]
+        except IOError:
+            pass
+        return output
+
+    def get_load(self):
+        data = {"load": (0.0, 0.0, 0.0)}
+        try:
+            output = run("ssh stats@%s uptime" % self.addr[0]).strip()
+        except IOError:
+            pass
+        if len(output.split(" ")) > 3:
+            load1m = float(output.split(" ")[-1].strip(" ,").replace(",", "."))
+            load5m = float(output.split(" ")[-2].strip(" ,").replace(",", "."))
+            load15m = float(output.split(" ")[-3].strip(" ,").replace(",", "."))
+            data["load"] = (load1m, load5m, load15m)
+        return data
+
+    def get_cpus(self):
+        data = {"cpu_count": 1}
+        try:
+            output = run("ssh stats@%s cat /proc/cpuinfo" % self.addr[0]).strip()
+        except IOError:
+            output = ""
+        if output:
+            cpus = []
+            for x in [x.strip() for x in output.split("\n")]:
+                if "processor" in x:
+                    cpus.append(int(x.split()[2].strip()))
+            data["cpu_count"] = max(cpus)+1 if cpus else 1
+        return data
+
+    def get_minecraft(self):
+        data = {
+            "name": self.basic_status["motd"],
+            "map" : self.basic_status["map"],
+            "ip" : self.basic_status["hostname"],
+            "port" : self.basic_status["hostport"],
+            "version" : self.full_info["version"],
+            "software" : self.full_info["software"],
+            "count" : self.basic_status["numplayers"],
+            "count_max" : self.basic_status["maxplayers"],
+            }
+        return data
+
+    def get_data(self):
+        data = {}
+        data.update(self.get_minecraft())
+        data.update(self.get_cpus())
+        data.update(self.get_load())
+        data.update(self.get_memory())
+        data.update(self.get_delay())
+        return data

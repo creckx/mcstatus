@@ -17,6 +17,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 #http://www.pythonware.com/library/pil/handbook/imagedraw.htm
 #http://stackoverflow.com/questions/4011705/python-the-imagingft-c-module-is-not-installed (_imaging)
 
+
 """
 map = world
 motd = BEST-HOSTING s.r.o.
@@ -41,134 +42,6 @@ hostip = 194.8.253.48
 software = CraftBukkit on Bukkit 1.4.5-R0.2
 
 """
-
-config = {
-    "data_dir": "/var/lib/minecraft/",
-}
-
-if not os.path.isdir(config["data_dir"]):
-    try:
-        os.makedirs(config["data_dir"])
-        os.makedirs(os.path.join(config["data_dir"], "www"))
-    except OSError:
-        sys.stderr.write("ERROR: i don't have permissions for %s\n" % config["data_dir"])
-        sys.exit(1)
-
-
-def run(cmd):
-    p = Popen(shlex.split(cmd), stdout=PIPE, stderr=PIPE)
-    stdout, stderr = p.communicate()
-    return stdout
-
-
-class MinecraftWidgetCollector(MinecraftQuery):
-
-    def __init__(self, *args, **kwargs):
-        super(MinecraftWidgetCollector, self).__init__(*args, **kwargs)
-        self.basic_status = self.get_status()
-        self.full_info = self.get_rules()
-        self.load_history()
-
-    def save_history(self):
-        with open(os.path.join(config["data_dir"], "minecraft_%s_%d.stats" % self.addr), "w") as f:
-            json.dump(self.history, f)
-
-    def save_data(self):
-        with open(os.path.join(config["data_dir"], "minecraft_%s_%d.data" % self.addr), "w") as f:
-            json.dump(self.get_data(), f)
-
-    def load_history(self):
-        if os.path.isfile(os.path.join(config["data_dir"], "minecraft_%s_%d.stats" % self.addr)):
-            with open(os.path.join(config["data_dir"], "minecraft_%s_%d.stats" % self.addr)) as f:
-                try:
-                    self.history = json.load(f)
-                    return 
-                except ValueError:
-                    pass
-        self.history = {
-            "players_24h": [],
-            "last_hour": 0,
-        }
-        for x in range(24):
-            self.history["players_24h"].append([])
-
-    def get_last(self):
-        with open(os.path.join(config["data_dir"], "minecraft_%s_%d.data" % self.addr)) as f:
-            return json.load(f)
-
-    def get_memory(self):
-        output = {"memory": 0, "memory_max": 0}
-        try:
-            data = [x.strip().split() for x in run("ssh stats@%s free -m" % self.addr[0]).split("\n")]
-            output["memory_max"] = data[1][1]
-            output["memory"] = data[2][2]
-        except IOError:
-            pass
-        return output
-
-    def get_load(self):
-        data = {"load": (0.0, 0.0, 0.0)}
-        try:
-            output = run("ssh stats@%s uptime" % self.addr[0]).strip()
-        except IOError:
-            pass
-        if len(output.split(" ")) > 3:
-            load1m = float(output.split(" ")[-1].strip(" ,").replace(",", "."))
-            load5m = float(output.split(" ")[-2].strip(" ,").replace(",", "."))
-            load15m = float(output.split(" ")[-3].strip(" ,").replace(",", "."))
-            data["load"] = (load1m, load5m, load15m)
-        return data
-
-    def get_cpus(self):
-        data = {"cpu_count": 1}
-        try:
-            output = run("ssh stats@%s cat /proc/cpuinfo" % self.addr[0]).strip()
-        except IOError:
-            output = ""
-        if output:
-            cpus = []
-            for x in [x.strip() for x in output.split("\n")]:
-                if "processor" in x:
-                    cpus.append(int(x.split()[2].strip()))
-            data["cpu_count"] = max(cpus)+1 if cpus else 1
-        return data
-
-    def write_history(self, players):
-        hour = datetime.datetime.now().hour
-        if hour != self.history["last_hour"]:
-            self.history["players_24h"].append([players])
-        else:
-            self.history["players_24h"][-1].append(players)
-        if len(self.history["players_24h"]) > 24:
-            self.history["players_24h"] = self.history["players_24h"][1:]
-        self.history["last_hour"] = hour
-        self.save_history()
-
-    def get_minecraft(self):
-        data = {
-            "name": self.basic_status["motd"],
-            "map" : self.basic_status["map"],
-            "ip" : self.basic_status["hostname"],
-            "port" : self.basic_status["hostport"],
-            "count" : self.basic_status["numplayers"],
-            "count_max" : self.basic_status["maxplayers"],
-        }
-        self.write_history(self.basic_status["numplayers"])
-        return data
-
-    def get_data(self):
-        data = {}
-        data.update(self.get_minecraft())
-        data.update(self.get_cpus())
-        data.update(self.get_load())
-        data.update(self.get_memory())
-        data["count_history"] = []
-        for hour in self.history["players_24h"]:
-            if len(hour) > 0:
-                data["count_history"].append(sum(hour)/float(len(hour)))
-            else:
-                data["count_history"].append(0)
-        return data
 
 
 class MinecraftWidget(object):
@@ -291,12 +164,13 @@ class MinecraftWidget(object):
         self.draw_name(self.SIZE_NAME[0], self.SIZE_NAME[1], two_lines)
         self.draw_ip(self.SIZE_IP[0], self.SIZE_IP[1], two_lines)
         self.draw_count(self.SIZE_COUNT[0], self.SIZE_COUNT[1], two_lines)
-        load = float(self.data["load"][1])/float(self.data["cpu_count"])*100
+        load = float(self.data["load"])/float(self.data["cpu_count"])*100
         self.draw_load(self.SIZE_LOAD[0], self.SIZE_LOAD[1], load, two_lines)
         self.draw_memory(self.SIZE_MEMORY[0], self.SIZE_MEMORY[1], two_lines)
         self.draw_bar(self.SIZE_BAR_LOAD[0], self.SIZE_BAR_LOAD[1], int(load), self.SIZE_BAR_LOAD[2])
         self.draw_bar(self.SIZE_BAR_MEMORY[0], self.SIZE_BAR_MEMORY[1], float(self.data["memory"])/float(self.data["memory_max"])*100, self.SIZE_BAR_MEMORY[2])
-        self.draw_graphs(self.SIZE_GRAPH[0], self.SIZE_GRAPH[1], self.data["count_history"], self.SIZE_GRAPH[2], self.SIZE_GRAPH[3])
+        if self.data["count_history"]:
+            self.draw_graphs(self.SIZE_GRAPH[0], self.SIZE_GRAPH[1], self.data["count_history"], self.SIZE_GRAPH[2], self.SIZE_GRAPH[3])
 
         output = StringIO.StringIO()
         self.im.save(output, "PNG")
