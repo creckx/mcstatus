@@ -169,8 +169,8 @@ class MinecraftWidget(object):
         self.draw_memory(self.SIZE_MEMORY[0], self.SIZE_MEMORY[1], two_lines)
         self.draw_bar(self.SIZE_BAR_LOAD[0], self.SIZE_BAR_LOAD[1], int(load), self.SIZE_BAR_LOAD[2])
         self.draw_bar(self.SIZE_BAR_MEMORY[0], self.SIZE_BAR_MEMORY[1], float(self.data["memory"])/float(self.data["memory_max"])*100, self.SIZE_BAR_MEMORY[2])
-        if self.data["count_history"]:
-            self.draw_graphs(self.SIZE_GRAPH[0], self.SIZE_GRAPH[1], self.data["count_history"], self.SIZE_GRAPH[2], self.SIZE_GRAPH[3])
+        if self.data["history"]:
+            self.draw_graphs(self.SIZE_GRAPH[0], self.SIZE_GRAPH[1], self.data["history"], self.SIZE_GRAPH[2], self.SIZE_GRAPH[3])
 
         output = StringIO.StringIO()
         self.im.save(output, "PNG")

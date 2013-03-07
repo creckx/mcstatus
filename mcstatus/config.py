@@ -46,3 +46,21 @@ WHERE a.type_id = t.id
 AND a.virtualServer_id = %d
 AND t.type = '%s';
 """
+
+SQL_PARM_UPDATE_STR = """
+UPDATE virtual_server_param_abstract a, virtual_server_param_type t
+SET a.description = '%s'
+WHERE a.type_id = t.id
+AND a.virtualServer_id = %d
+AND t.type = '%s'; 
+"""
+
+SQL_PARM_NAME = """
+UPDATE virtual_server vps
+SET vps.name = '%s'
+WHERE vps.id = %d;
+"""
+
+SQL_GET_NAME = """
+SELECT name FROM virtual_server WHERE id = %d;
+"""

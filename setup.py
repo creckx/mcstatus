@@ -23,5 +23,6 @@ setup(
     [console_scripts]
     mcstatus_cli = mcstatus.cli:main
     mcstatus_widget = mcstatus.cli_widget:main
+    mcstatus_datamining = mcstatus.datamining:main
     """
 )
