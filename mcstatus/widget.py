@@ -303,14 +303,14 @@ class MinecraftWidget(object):
         return output.getvalue()
 
 
-def main(hostname, port):
-    collector = MinecraftWidgetCollector(hostname, port)
-    collector.save_data()
-    for profile in ('vb', 'vw', 'hb', 'hw'):
-        widget = MinecraftWidget(collector.get_last(), profile)
-        with open(os.path.join(config["data_dir"], "www", "widget_%s_%s_%d.png" % (profile, collector.addr[0], collector.addr[1])), "w") as f:
-            f.write(widget.get_image())
+#def main(hostname, port):
+#    collector = MinecraftWidgetCollector(hostname, port)
+#    collector.save_data()
+#    for profile in ('vb', 'vw', 'hb', 'hw'):
+#        widget = MinecraftWidget(collector.get_last(), profile)
+#        with open(os.path.join(config["data_dir"], "www", "widget_%s_%s_%d.png" % (profile, collector.addr[0], collector.addr[1])), "w") as f:
+#            f.write(widget.get_image())
 
 
-if __name__ == "__main__":
-    main("194.8.253.48", 25565)
+#if __name__ == "__main__":
+#    main("194.8.253.48", 25565)
